@@ -1,0 +1,103 @@
+---
+title: "Analysis of Refugee Population Statistics"
+format: dashboard
+server: shiny
+---
+
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import panel as pn
+
+from shiny import App, ui, reactive, render
+
+plt.style.use('unhcrpyplotstyle')
+
+
+```
+
+
+# Importing data    
+
+
+```{python}
+origin =  pd.read_csv("data/ref_country_orig.csv")
+
+asylm = pd.read_csv("data/ref_country_asylm.csv")
+
+```
+
+
+
+
+```{python}
+print(origin.head())
+```
+
+```{python}
+print(asylm.head())
+```
+
+
+
+```{python}
+print(df_orig.head())
+
+```
+
+
+```{python}
+import pandas as pd
+
+# Load the data
+df_orig = pd.read_csv("data/ref_country_orig.csv")
+df_asylm = pd.read_csv("data/ref_country_asylm.csv")
+
+# Melt the data to convert wide format to long format
+df_orig = df_orig.melt(id_vars=["country"], var_name="Year", value_name="Refugees")
+df_asylm = df_asylm.melt(id_vars=["country"], var_name="Year", value_name="Refugees")
+
+# Convert 'Year' column to integer
+df_orig["Year"] = df_orig["Year"].astype(int)
+df_asylm["Year"] = df_asylm["Year"].astype(int)
+
+# Drop rows with NaN values in 'Refugees'
+df_orig.dropna(subset=["Refugees"], inplace=True)
+df_asylm.dropna(subset=["Refugees"], inplace=True)
+
+# Optional: Inspect the data
+print(df_orig.head())
+print(df_asylm.head())
+
+```
+
+
+```{python}
+df_combined = pd.merge(
+    df_orig, df_asylm, on=["country", "Year"], suffixes=("_origin", "_asylum")
+)
+print(df_combined.head())
+
+```
+
+
+```{python}
+selected_years = [1951, 1952]
+filtered_df = df_combined[df_combined["Year"].isin(selected_years)]
+
+```
+
+
+```{python}
+df_orig["Refugees"].replace(0, float("nan"), inplace=True)
+
+```
+
+
+```{python}
+years = sorted(df_orig["Year"].unique())
+countries = sorted(df_orig["country"].unique())
+
+```
