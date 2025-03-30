@@ -232,7 +232,6 @@ fig_trend_asylums.update_layout(
 ```
 
 # Global overview
-
 :::{.valuebox title="Total of refugees and asylum seeker" color="#0072c6" icon="people-fill" }
 `{python} total_refugees_origin` 
 
@@ -256,13 +255,10 @@ fig1
 
 # Countries of Origin
 
-### {width="50%"}
-
 ```{python}
 fig_trend_origins
 ```
 
-### {width="50%"}
 
 ```{python}
 fig_top10_origin
