@@ -1,10 +1,9 @@
+--- 
+title: "GAPMINDER | TUBERCULOSIS TREATMENT NOTIFICATIONS 2007"
+author: "Ester Nepolo"
+format: dashboard 
 ---
-title: "Refugee Dashboard"
-author: Kazim Lamine
-format: 
-  dashboard:
-    theme: superhero
----
+
 ```{python}
 # Importing 
 import pandas as pd
