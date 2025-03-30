@@ -1,5 +1,6 @@
 ---
 title: "Refugee Dashboard"
+author: Kazim Lamine
 format: 
   dashboard:
     theme: superhero
@@ -229,9 +230,6 @@ fig_trend_asylums.update_layout(
 )
 
 ```
-
-
-
 
 # Global overview
 
