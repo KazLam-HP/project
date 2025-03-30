@@ -1,0 +1,306 @@
+---
+title: "Refugee Dashboard"
+format: 
+  dashboard:
+    theme: superhero
+---
+
+import pandas as pd
+import plotly.express as px
+import country_converter as coco
+
+# Load and process the data for origin
+df_orig = pd.read_csv("data/ref_country_orig.csv")
+df_orig = df_orig.melt(id_vars=["country"], var_name="Year", value_name="Refugees_origin")
+df_orig = df_orig.dropna(subset=["Refugees_origin"])
+df_orig["Year"] = df_orig["Year"].astype(int)
+
+# Load and process the data for asylum
+df_asylm = pd.read_csv("data/ref_country_asylm.csv")
+df_asylm = df_asylm.melt(id_vars=["country"], var_name="Year", value_name="Refugees_asylum")
+df_asylm = df_asylm.dropna(subset=["Refugees_asylum"])
+df_asylm["Year"] = df_asylm["Year"].astype(int)
+
+# Sort countries by total refugees for better visualization
+orig_sorted = df_orig.groupby("country")["Refugees_origin"].sum().sort_values(ascending=False).index
+asylm_sorted = df_asylm.groupby("country")["Refugees_asylum"].sum().sort_values(ascending=False).index
+
+# Merge datasets for cross-analysis
+df_combined = pd.merge(df_orig, df_asylm, on=["country", "Year"], how="inner")
+
+# Compute global annual totals (refugees + asylum seekers)
+df_total = df_combined.groupby("Year").agg({
+    "Refugees_origin": "sum",
+    "Refugees_asylum": "sum"
+}).reset_index()
+
+df_total["Total"] = df_total["Refugees_origin"] + df_total["Refugees_asylum"]
+
+# Create the interactive figure with Plotly Express
+fig1 = px.bar(
+    df_total, 
+    x="Year", 
+    y="Total",
+    title="<b>Global Forcibly Displaced People Trends</b>",
+    labels={"Total": "Total (in Millions)", "Year": "Year"},
+    color_discrete_sequence=["#0072c6"],
+    template="plotly_white"
+)
+
+
+# Total number of refugees
+total_refugees_origin = int(df_orig["Refugees_origin"].sum())
+total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
+
+# Count only countries with actual data
+valid_origin_countries = df_orig.groupby("country")["Refugees_origin"].sum()
+total_countries_origin = (valid_origin_countries > 0).sum()
+
+valid_asylum_countries = df_asylm.groupby("country")["Refugees_asylum"].sum()
+total_countries_asylum = (valid_asylum_countries > 0).sum()
+
+# Summary metrics
+total_refugees_origin = int(df_orig["Refugees_origin"].sum())
+total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
+valid_origin = df_orig.groupby("country")["Refugees_origin"].sum()
+total_countries_origin = (valid_origin > 0).sum()
+valid_asylum = df_asylm.groupby("country")["Refugees_asylum"].sum()
+total_countries_asylum = (valid_asylum > 0).sum()
+
+
+### Countries of origin
+
+# Top 10 countries of origin by total refugees
+top_origins = (
+    df_orig.groupby("country")["Refugees_origin"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
+
+# Trend data for top 5 origin countries
+top_5_countries = top_origins["country"].head(5).tolist()
+trend_top_origins = df_orig[df_orig["country"].isin(top_5_countries)]
+
+# Ensure Year is integer
+trend_top_origins = trend_top_origins.copy()
+trend_top_origins["Year"] = trend_top_origins["Year"].astype(int)
+
+
+fig_top10_origin = px.bar(
+    top_origins,
+    x="Refugees_origin",
+    y="country",
+    orientation="h",
+    title="Top 10 Countries of Origin",
+    labels={"Refugees_origin": "Total Refugees", "country": "Country"},
+    template="plotly_white",
+    color_discrete_sequence=["#0072c6"]
+)
+
+fig_top10_origin.update_layout(
+    yaxis=dict(categoryorder="total ascending")
+)
+
+fig_trend_origins = px.line(
+    trend_top_origins,
+    x="Year",
+    y="Refugees_origin",
+    color="country",
+    title="<b>Trends in Refugees by Country of Origin (Top 5)</b>",
+    labels={"Refugees_origin": "Number of Refugees", "Year": "Year"},
+    template="plotly_white"
+)
+
+
+### Countries of asylum
+
+# Prepare data
+df_asylm = df_asylm.copy()
+df_asylm["Year"] = df_asylm["Year"].astype(int)
+
+# 1. Total number of countries with actual asylum data
+valid_asylum = df_asylm.groupby("country")["Refugees_asylum"].sum()
+total_countries_asylum = (valid_asylum > 0).sum()
+
+# 2. Top 10 countries of asylum (by total number of refugees)
+top_asylums = (
+    df_asylm.groupby("country")["Refugees_asylum"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
+
+# 3. Time trends for top 5 countries
+top_5_asylum_countries = top_asylums["country"].head(5).tolist()
+trend_top_asylums = df_asylm[df_asylm["country"].isin(top_5_asylum_countries)]
+trend_top_asylums["Year"] = trend_top_asylums["Year"].astype(int)
+
+# 4. Bar Chart - Top 10 Countries of Asylum
+fig_top10_asylum = px.bar(
+    top_asylums,
+    x="Refugees_asylum",
+    y="country",
+    orientation="h",
+    title="Top 10 Countries of Asylum",
+    labels={"Refugees_asylum": "Total Refugees Hosted", "country": "Country"},
+    template="plotly_white",
+    color_discrete_sequence=["#009688"]
+)
+fig_top10_asylum.update_layout(yaxis=dict(categoryorder="total ascending"))
+
+# 5. Line Chart - Trends for Top 5 Countries of Asylum
+fig_trend_asylums = px.line(
+    trend_top_asylums,
+    x="Year",
+    y="Refugees_asylum",
+    color="country",
+    title="Trends in Refugees by Country of Asylum (Top 5)",
+    labels={"Refugees_asylum": "Number of Refugees Hosted", "Year": "Year"},
+    template="plotly_white"
+)
+
+fig_trend_asylums.update_layout(
+    margin=dict(t=60, r=40, b=40, l=40),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        bgcolor="rgba(255,255,255,0.7)",
+        bordercolor="black",
+        borderwidth=1
+    ),
+    xaxis=dict(
+        tickmode="linear",
+        tick0=trend_top_asylums["Year"].min(),
+        dtick=5
+    )
+)
+
+### Regions insigth
+
+# Sample country list from your data (replace with actual df_asylm["country"])
+countries = df_asylm["country"].unique()
+
+# Convert to DataFrame
+country_df = pd.DataFrame({"country": countries})
+
+# Use coco to get standardized ISO3 and UN regions
+cc = coco.CountryConverter()
+country_df["iso3"] = cc.convert(names=country_df["country"], to="ISO3")
+country_df["region"] = cc.convert(names=country_df["country"], to="UNregion")
+country_df["subregion"] = cc.convert(names=country_df["country"], to="UNsubregion")
+
+# Preview
+country_df.head()
+
+# Merge region info into df_asylm and df_orig
+df_asylm = df_asylm.merge(country_df[["country", "region", "subregion"]], on="country", how="left")
+df_orig = df_orig.merge(country_df[["country", "region", "subregion"]], on="country", how="left")
+
+regional_totals = (
+    df_asylm.groupby("region")["Refugees_asylum"]
+    .sum()
+    .sort_values(ascending=False)
+    .reset_index()
+)
+
+fig_asylum_region_bar = px.bar(
+    regional_totals,
+    x="Refugees_asylum",
+    y="region",
+    orientation="h",
+    title="Total Refugees by Region of Asylum",
+    labels={"Refugees_asylum": "Total Refugees Hosted", "region": "Region"},
+    template="plotly_white",
+    color_discrete_sequence=["#1f77b4"]
+)
+fig_asylum_region_bar.update_layout(yaxis=dict(categoryorder="total ascending"))
+fig_asylum_region_bar.show()
+
+
+regional_trends = (
+    df_asylm.groupby(["region", "Year"])["Refugees_asylum"]
+    .sum()
+    .reset_index()
+)
+
+fig_asylum_region_trend = px.line(
+    regional_trends,
+    x="Year",
+    y="Refugees_asylum",
+    color="region",
+    title="Refugee Hosting Trends by Region (Asylum)",
+    labels={"Refugees_asylum": "Refugees", "Year": "Year"},
+    template="plotly_white"
+)
+
+fig_asylum_region_trend.update_layout(
+    legend=dict(orientation="h", x=0, y=1.1),
+    xaxis=dict(tickmode="linear", dtick=5)
+)
+fig_asylum_region_trend.show()
+
+
+regional_trends_recent = regional_trends[regional_trends["Year"] >= 2010]
+
+
+```
+
+
+# Global overview
+
+## {height = 20%}
+
+:::{.valuebox title="Total of refugees and asylum seeker" color="#0072c6" icon="people-fill" }
+`{python} total_refugees_origin` 
+
+Million people.
+:::
+
+:::{.valuebox title="Countries of origin" color="#0072c6" icon="globe-europe-africa" }
+`{python} total_countries_origin`
+:::
+
+
+:::{.valuebox title="Countries of asylum" color="#0072c6" icon="globe-central-south-asia" }
+`{python} total_countries_asylum` 
+:::
+
+##
+```{python}
+fig1
+```
+
+
+# Countries of Origin
+
+### {width="50%"}
+```{python}
+#fig_trend_origins
+```
+
+### {width="50%"}
+
+```{python}
+fig_top10_origin
+```
+
+
+# Countries of Asylum
+
+```{python}
+
+# Display
+fig_top10_asylum.show()
+
+```
+
+
+```{python}
+fig_trend_asylums.show()
+```

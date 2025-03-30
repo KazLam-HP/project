@@ -1,103 +1,345 @@
 ---
-title: "Analysis of Refugee Population Statistics"
-format: dashboard
-server: shiny
+title: "Refugee Dashboard"
+format: 
+  dashboard:
+    theme: superhero
 ---
-
-
 ```{python}
+# Importing 
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import panel as pn
+import plotly.express as px
+import itables as it
+from itables import show
 
-from shiny import App, ui, reactive, render
+# Configure itables options
+it.options = {
+    "scrollX": True,
+    "paging": True,
+    "buttons": ["csvHtml5"],
+    "dom": "Bfrtip"
+}
 
-plt.style.use('unhcrpyplotstyle')
+import itables
+from itables import show
 
-
-```
-
-
-# Importing data    
-
-
-```{python}
-origin =  pd.read_csv("data/ref_country_orig.csv")
-
-asylm = pd.read_csv("data/ref_country_asylm.csv")
-
-```
-
-
-
-
-```{python}
-print(origin.head())
-```
-
-```{python}
-print(asylm.head())
-```
+# Optional styling: enable scrolling and CSV export
+itables.options = {
+    "scrollX": True,
+    "paging": True,
+    "buttons": ["csvHtml5"]
+}
 
 
 
-```{python}
-print(df_orig.head())
+# Load and process the data for origin
 
-```
-
-
-```{python}
-import pandas as pd
-
-# Load the data
 df_orig = pd.read_csv("data/ref_country_orig.csv")
-df_asylm = pd.read_csv("data/ref_country_asylm.csv")
-
-# Melt the data to convert wide format to long format
-df_orig = df_orig.melt(id_vars=["country"], var_name="Year", value_name="Refugees")
-df_asylm = df_asylm.melt(id_vars=["country"], var_name="Year", value_name="Refugees")
-
-# Convert 'Year' column to integer
+df_orig = df_orig.melt(id_vars=["country"], var_name="Year", value_name="Refugees_origin")
+df_orig = df_orig.dropna(subset=["Refugees_origin"])
 df_orig["Year"] = df_orig["Year"].astype(int)
+
+# Load and process the data for asylum
+df_asylm = pd.read_csv("data/ref_country_asylm.csv")
+df_asylm = df_asylm.melt(id_vars=["country"], var_name="Year", value_name="Refugees_asylum")
+df_asylm = df_asylm.dropna(subset=["Refugees_asylum"])
 df_asylm["Year"] = df_asylm["Year"].astype(int)
 
-# Drop rows with NaN values in 'Refugees'
-df_orig.dropna(subset=["Refugees"], inplace=True)
-df_asylm.dropna(subset=["Refugees"], inplace=True)
+# Sort countries by total refugees for better visualization
+orig_sorted = df_orig.groupby("country")["Refugees_origin"].sum().sort_values(ascending=False).index
+asylm_sorted = df_asylm.groupby("country")["Refugees_asylum"].sum().sort_values(ascending=False).index
 
-# Optional: Inspect the data
-print(df_orig.head())
-print(df_asylm.head())
+# Merge datasets for cross-analysis
+df_combined = pd.merge(df_orig, df_asylm, on=["country", "Year"], how="inner")
 
-```
+# Compute global annual totals (refugees + asylum seekers)
+df_total = df_combined.groupby("Year").agg({
+    "Refugees_origin": "sum",
+    "Refugees_asylum": "sum"
+}).reset_index()
 
+df_total["Total"] = df_total["Refugees_origin"] + df_total["Refugees_asylum"]
 
-```{python}
-df_combined = pd.merge(
-    df_orig, df_asylm, on=["country", "Year"], suffixes=("_origin", "_asylum")
+# Create the interactive figure with Plotly Express
+fig1 = px.bar(
+    df_total, 
+    x="Year", 
+    y="Total",
+    title="<b>Global Forcibly Displaced People Trends</b>",
+    labels={"Total": "Total (in Millions)", "Year": "Year"},
+    color_discrete_sequence=["#0072c6"],
+    template="plotly_white"
 )
-print(df_combined.head())
+
+
+# Total number of refugees
+total_refugees_origin = int(df_orig["Refugees_origin"].sum())
+total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
+
+# Count only countries with actual data
+valid_origin_countries = df_orig.groupby("country")["Refugees_origin"].sum()
+total_countries_origin = (valid_origin_countries > 0).sum()
+
+valid_asylum_countries = df_asylm.groupby("country")["Refugees_asylum"].sum()
+total_countries_asylum = (valid_asylum_countries > 0).sum()
+
+# Summary metrics
+total_refugees_origin = int(df_orig["Refugees_origin"].sum())
+total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
+
+
+### Countries of origin
+
+# Top 10 countries of origin by total refugees
+top_origins = (
+    df_orig.groupby("country")["Refugees_origin"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
+
+# Trend data for top 5 origin countries
+top_5_countries = top_origins["country"].head(5).tolist()
+trend_top_origins = df_orig[df_orig["country"].isin(top_5_countries)]
+
+# Ensure Year is integer
+trend_top_origins = trend_top_origins.copy()
+trend_top_origins["Year"] = trend_top_origins["Year"].astype(int)
+
+
+# Create the figure
+fig_trend_origins = px.line(
+    trend_top_origins,
+    x="Year",
+    y="Refugees_origin",
+    color="country",
+    title="Trends in Refugees by Country of Origin (Top 5)",
+    labels={"Refugees_origin": "Number of Refugees", "Year": "Year"},
+    template="plotly_white"
+)
+
+# Horizontal legend at top right (inside chart bounds)
+fig_trend_origins.update_layout(
+    margin=dict(t=60, r=40, b=40, l=40),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        bgcolor="rgba(255,255,255,0.7)",
+        bordercolor="black",
+        borderwidth=1
+    ),
+    xaxis=dict(
+        tickmode="linear",
+        tick0=trend_top_origins["Year"].min(),
+        dtick=5
+    )
+)
+
+fig_trend_origins.show()
+
+
+
+fig_top10_origin = px.bar(
+    top_origins,
+    x="Refugees_origin",
+    y="country",
+    orientation="h",
+    title="Top 10 Countries of Origin",
+    labels={"Refugees_origin": "Total Refugees", "country": "Country"},
+    template="plotly_white",
+    color_discrete_sequence=["#0072c6"]
+)
+
+fig_top10_origin.update_layout(
+    yaxis=dict(categoryorder="total ascending")
+)
+
+
+
+### Countries of asylum
+
+# Prepare data
+df_asylm = df_asylm.copy()
+df_asylm["Year"] = df_asylm["Year"].astype(int)
+
+# 1. Total number of countries with actual asylum data
+valid_asylum = df_asylm.groupby("country")["Refugees_asylum"].sum()
+total_countries_asylum = (valid_asylum > 0).sum()
+
+# 2. Top 10 countries of asylum (by total number of refugees)
+top_asylums = (
+    df_asylm.groupby("country")["Refugees_asylum"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
+    .reset_index()
+)
+
+# 3. Time trends for top 5 countries
+top_5_asylum_countries = top_asylums["country"].head(5).tolist()
+trend_top_asylums = df_asylm[df_asylm["country"].isin(top_5_asylum_countries)]
+trend_top_asylums["Year"] = trend_top_asylums["Year"].astype(int)
+
+# 4. Bar Chart - Top 10 Countries of Asylum
+
+fig_top10_asylum = px.bar(
+    top_asylums,
+    x="Refugees_asylum",
+    y="country",
+    orientation="h",
+    title="Top 10 Countries of Asylum",
+    labels={"Refugees_asylum": "Total Refugees Hosted", "country": "Country"},
+    template="plotly_white",
+    color_discrete_sequence=["#009688"]
+)
+fig_top10_asylum.update_layout(yaxis=dict(categoryorder="total ascending"))
+
+
+# 5. Line Chart - Trends for Top 5 Countries of Asylum
+fig_trend_asylums = px.line(
+    trend_top_asylums,
+    x="Year",
+    y="Refugees_asylum",
+    color="country",
+    title="Trends in Refugees by Country of Asylum (Top 5)",
+    labels={"Refugees_asylum": "Number of Refugees Hosted", "Year": "Year"},
+    template="plotly_white"
+)
+
+fig_trend_asylums.update_layout(
+    margin=dict(t=60, r=40, b=40, l=40),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1,
+        bgcolor="rgba(255,255,255,0.7)",
+        bordercolor="black",
+        borderwidth=1
+    ),
+    xaxis=dict(
+        tickmode="linear",
+        tick0=trend_top_asylums["Year"].min(),
+        dtick=5
+    )
+)
+
+```
+
+
+
+
+# Global overview
+
+## {height = 20%}
+
+:::{.valuebox title="Total of refugees and asylum seeker" color="#0072c6" icon="people-fill" }
+`{python} total_refugees_origin` 
+
+Million people.
+:::
+
+:::{.valuebox title="Countries of origin" color="#0072c6" icon="globe-europe-africa" }
+`{python} total_countries_origin`
+:::
+
+
+:::{.valuebox title="Countries of asylum" color="#0072c6" icon="globe-central-south-asia" }
+`{python} total_countries_asylum` 
+:::
+
+##
+```{python}
+fig1
+```
+
+
+# Countries of Origin
+
+### {width="50%"}
+
+```{python}
+fig_trend_origins
+```
+
+### {width="50%"}
+
+```{python}
+fig_top10_origin
+```
+
+
+# Countries of Asylum
+
+```{python}
+
+# Display
+fig_top10_asylum.show()
 
 ```
 
 
 ```{python}
-selected_years = [1951, 1952]
-filtered_df = df_combined[df_combined["Year"].isin(selected_years)]
-
+fig_trend_asylums.show()
 ```
 
+# DATA DOWNLOAD
 
 ```{python}
-df_orig["Refugees"].replace(0, float("nan"), inplace=True)
 
+# Optional styling: enable scrolling and CSV export
+itables.options = {
+    "scrollX": True,
+    "paging": True,
+    "buttons": ["csvHtml5"]
+}
+
+# Show combined dataset
+show(
+    df_combined,
+    caption="📊 Refugee Dataset (Origin + Asylum)"
+)
+
+# Show origin dataset
+show(
+    df_orig,
+    caption="🌍 Refugee Country of Origin Data"
+)
+
+# Show asylum dataset
+show(
+    df_asylm,
+    caption="🛡️ Refugee Country of Asylum Data"
+)
 ```
 
+# ABOUT
+This dashboard presents data on refugees and asylum seekers, highlighting historical trends and country-level dynamics. The dataset was curated and processed from the Gapminder dataset to support evidence-based humanitarian planning and decision-making.
 
-```{python}
-years = sorted(df_orig["Year"].unique())
-countries = sorted(df_orig["country"].unique())
+It covers:
 
-```
+🏳️ Refugee population by country of origin
+
+🛡️ Refugees hosted by country of asylum
+
+📊 Combined yearly totals and regional trends
+
+📥 Interactive tables for download and deeper exploration
+
+The dashboard is powered by Python, using tools such as pandas, plotly, and itables to make the insights clear and accessible.
+
+💡 Why it matters
+This dashboard provides a blueprint for:
+
+Governments and international organizations to understand displacement pressures and hosting burdens
+
+Supporting host communities with the resources they need
+
+Informing strategies that allow refugees to lead safe, dignified, and productive lives
+
+Promoting peacebuilding in countries of origin through data-driven insights
+
