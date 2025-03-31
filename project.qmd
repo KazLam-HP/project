@@ -1,6 +1,8 @@
 --- 
-title: "GAPMINDER | TUBERCULOSIS TREATMENT NOTIFICATIONS 2007"
-author: "Ester Nepolo"
+title: "GAPMINDER | Forced Displaced People Dashboard"
+author: "Kazim Lamine"
+execute:
+  echo: false
 format: dashboard 
 ---
 
@@ -28,7 +30,6 @@ itables.options = {
     "paging": True,
     "buttons": ["csvHtml5"]
 }
-
 
 
 # Load and process the data for origin
@@ -70,7 +71,6 @@ fig1 = px.bar(
     template="plotly_white"
 )
 
-
 # Total number of refugees
 total_refugees_origin = int(df_orig["Refugees_origin"].sum())
 total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
@@ -85,7 +85,6 @@ total_countries_asylum = (valid_asylum_countries > 0).sum()
 # Summary metrics
 total_refugees_origin = int(df_orig["Refugees_origin"].sum())
 total_refugees_asylum = int(df_asylm["Refugees_asylum"].sum())
-
 
 ### Countries of origin
 
@@ -105,7 +104,6 @@ trend_top_origins = df_orig[df_orig["country"].isin(top_5_countries)]
 # Ensure Year is integer
 trend_top_origins = trend_top_origins.copy()
 trend_top_origins["Year"] = trend_top_origins["Year"].astype(int)
-
 
 # Create the figure
 fig_trend_origins = px.line(
@@ -138,10 +136,6 @@ fig_trend_origins.update_layout(
     )
 )
 
-fig_trend_origins.show()
-
-
-
 fig_top10_origin = px.bar(
     top_origins,
     x="Refugees_origin",
@@ -156,7 +150,6 @@ fig_top10_origin = px.bar(
 fig_top10_origin.update_layout(
     yaxis=dict(categoryorder="total ascending")
 )
-
 
 
 ### Countries of asylum
@@ -197,7 +190,6 @@ fig_top10_asylum = px.bar(
 )
 fig_top10_asylum.update_layout(yaxis=dict(categoryorder="total ascending"))
 
-
 # 5. Line Chart - Trends for Top 5 Countries of Asylum
 fig_trend_asylums = px.line(
     trend_top_asylums,
@@ -228,6 +220,9 @@ fig_trend_asylums.update_layout(
     )
 )
 
+# 🔇 Prevent Quarto from rendering this figure too early
+_ = fig_trend_asylums
+
 ```
 
 # Global overview
@@ -241,7 +236,6 @@ Million people.
 `{python} total_countries_origin`
 :::
 
-
 :::{.valuebox title="Countries of asylum" color="#0072c6" icon="globe-central-south-asia" }
 `{python} total_countries_asylum` 
 :::
@@ -251,31 +245,27 @@ Million people.
 fig1
 ```
 
-
 # Countries of Origin
 
 ```{python}
 fig_trend_origins
 ```
 
-
 ```{python}
 fig_top10_origin
 ```
-
 
 # Countries of Asylum
 
 ```{python}
 
 # Display
-fig_top10_asylum.show()
+fig_top10_asylum
 
 ```
 
-
 ```{python}
-fig_trend_asylums.show()
+fig_trend_asylums
 ```
 
 # DATA DOWNLOAD
@@ -333,4 +323,5 @@ Supporting host communities with the resources they need
 Informing strategies that allow refugees to lead safe, dignified, and productive lives
 
 Promoting peacebuilding in countries of origin through data-driven insights
+
 
